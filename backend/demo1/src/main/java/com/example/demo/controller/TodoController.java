@@ -1,49 +1,52 @@
 package com.example.demo.controller;
 
-import com.example.demo.entity.TodoItem;
-import com.example.demo.repository.TodoRepository;
+import com.example.demo.entity.Todo;
+import com.example.demo.entity.User;
+import com.example.demo.service.TodoService;
+import com.example.demo.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
-import java.util.Optional;
 
-// 必须添加RestController注解让Spring识别为REST API控制器
 @RestController
-@CrossOrigin(origins = "http://localhost:3000") // 允许前端访问
-@RequestMapping("/api/todos") // 配置API的路径前缀
+@RequestMapping("/api/todo")
 public class TodoController {
+    @Autowired
+    private TodoService todoService;
+    @Autowired
+    private UserService userService;
 
-    private final TodoRepository repo;
-
-    // 正确的构造方法写法
-    public TodoController(TodoRepository repo) {
-        this.repo = repo;
+    // 获取当前用户的所有TODO
+    @GetMapping("/list")
+    public List<Todo> list(@RequestParam Long userId) {
+        User user = userService.findById(userId);
+        return todoService.getTodosByUser(user);
     }
 
-    @GetMapping
-    public List<TodoItem> findAll() {
-        return repo.findAll();
+    // 新增
+    @PostMapping("/add")
+    public Object add(@RequestParam Long userId, @RequestParam String content) {
+        User user = userService.findById(userId);
+        return todoService.addTodo(user, content);
     }
 
-    @PostMapping
-    public TodoItem create(@RequestBody TodoItem todo) {
-        todo.setId(null);
-        return repo.save(todo);
+    // 修改
+    @PostMapping("/update")
+    public Object update(@RequestParam Long id, @RequestParam(required = false) String content, @RequestParam(required = false) Boolean completed) {
+        Todo todo = todoService.updateTodo(id, content, completed);
+        if (todo != null) return todo;
+        return "未找到该任务";
     }
 
-    @PatchMapping("/{id}")
-    public TodoItem toggle(@PathVariable Long id) {
-        Optional<TodoItem> opt = repo.findById(id);
-        if (opt.isPresent()) {
-            TodoItem item = opt.get();
-            item.setCompleted(!item.isCompleted());
-            return repo.save(item);
+    // 删除
+    @PostMapping("/delete")
+    public String delete(@RequestParam Long id) {
+        if (todoService.deleteTodo(id)) {
+            return "删除成功";
+        } else {
+            return "未找到该任务";
         }
-        return null;
-    }
-
-    @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
-        repo.deleteById(id);
     }
 }
 
